@@ -3,58 +3,29 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>FXageAI – P2P Arbitrage Monitor</title>
+<title>FXageAI – Live P2P Arbitrage</title>
 
 <style>
-body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  background: #0f172a;
-  color: #e5e7eb;
-}
-header {
-  padding: 12px;
-  text-align: center;
-  background: #020617;
-}
-#status {
-  font-size: 14px;
-  color: #22c55e;
-}
+body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
+header { background:#020617; padding:12px; text-align:center; }
+#status { color:#22c55e; font-size:14px; }
 .container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 10px;
-  padding: 10px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  gap:10px; padding:10px;
 }
-.card {
-  border-radius: 12px;
-  padding: 10px;
-  background: #020617;
-}
-.kes { background: linear-gradient(135deg,#0b6623,#000); }
-.ugx { background: linear-gradient(135deg,#000,#ffd700,#d32f2f); }
-.tzs { background: linear-gradient(135deg,#1b5e20,#fdd835,#1565c0); }
+.card { background:#020617; border-radius:12px; padding:10px; }
+.kes { background:linear-gradient(135deg,#0b6623,#000); }
+.ugx { background:linear-gradient(135deg,#000,#ffd700,#d32f2f); }
+.tzs { background:linear-gradient(135deg,#1b5e20,#fdd835,#1565c0); }
 
-table {
-  width: 100%;
-  font-size: 13px;
-  border-collapse: collapse;
-}
-th, td {
-  padding: 4px;
-  text-align: right;
-}
-th { color: #93c5fd; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th,td { padding:4px; text-align:right; }
+th { color:#93c5fd; }
 
-#advisory {
-  margin: 10px;
-  padding: 10px;
-  border-radius: 12px;
-  background: #020617;
-}
-.good { color: #22c55e; }
-.bad { color: #ef4444; }
+#advisory { margin:10px; padding:10px; background:#020617; border-radius:12px; }
+.good { color:#22c55e; }
+.bad { color:#ef4444; }
 </style>
 </head>
 
@@ -66,97 +37,85 @@ th { color: #93c5fd; }
 </header>
 
 <div class="container">
-  <div class="card kes">
-    <h3>🇰🇪 KES</h3>
-    <div id="kes"></div>
-  </div>
-
-  <div class="card ugx">
-    <h3>🇺🇬 UGX (KES)</h3>
-    <div id="ugx"></div>
-  </div>
-
-  <div class="card tzs">
-    <h3>🇹🇿 TZS (KES)</h3>
-    <div id="tzs"></div>
-  </div>
+  <div class="card kes"><h3>🇰🇪 KES</h3><div id="KES"></div></div>
+  <div class="card ugx"><h3>🇺🇬 UGX → KES</h3><div id="UGX"></div></div>
+  <div class="card tzs"><h3>🇹🇿 TZS → KES</h3><div id="TZS"></div></div>
 </div>
 
 <div id="advisory">
   <h3>Advisory</h3>
-  <div id="advice">Waiting for data…</div>
+  <div id="advice">Waiting for prices…</div>
 </div>
 
 <script>
 /* ================= CONFIG ================= */
 const BACKEND = "https://fxageai-p2p-backend.onrender.com";
-const CAPITAL_KES = 100000;
+const CAPITAL = 100000;
 
-/* FX mid-market (can later be automated) */
+/* Mid FX (safe placeholders) */
 const FX = {
   UGX: 1 / 37.5,
   TZS: 1 / 18.2
 };
 
 /* ================= FETCH ================= */
-async function getP2P(fiat) {
+async function load(fiat){
   const r = await fetch(`${BACKEND}/p2p?fiat=${fiat}`);
   return await r.json();
 }
 
 /* ================= RENDER ================= */
-function renderTable(rows, fx = 1) {
-  if (!rows || rows.length === 0) return "No data";
-  let html = `<table>
-    <tr><th>Buy</th><th>Sell</th></tr>`;
-  rows.slice(0,5).forEach(r => {
-    const buy = (r.adv?.price || r.price) * fx;
-    html += `<tr>
-      <td>${buy.toFixed(2)}</td>
-      <td>-</td>
-    </tr>`;
-  });
-  html += "</table>";
-  return html;
+function table(buy, sell, fx=1){
+  if(!buy?.length || !sell?.length) return "No data";
+  let b = Number(buy[0].adv.price) * fx;
+  let s = Number(sell[0].adv.price) * fx;
+  return `
+    <table>
+      <tr><th>Buy</th><th>Sell</th></tr>
+      <tr>
+        <td>${b.toFixed(2)}</td>
+        <td>${s.toFixed(2)}</td>
+      </tr>
+    </table>`;
 }
 
-/* ================= MAIN LOOP ================= */
-async function refresh() {
-  try {
-    document.getElementById("status").innerText = "Live • updating…";
+/* ================= MAIN ================= */
+async function refresh(){
+  try{
+    document.getElementById("status").innerText="Live • updating…";
 
-    const kes = await getP2P("KES");
-    const ugx = await getP2P("UGX");
-    const tzs = await getP2P("TZS");
+    const kes = await load("KES");
+    const ugx = await load("UGX");
+    const tzs = await load("TZS");
 
-    document.getElementById("kes").innerHTML =
-      renderTable(kes.binance.buy);
+    document.getElementById("KES").innerHTML =
+      table(kes.binance.buy, kes.binance.sell);
 
-    document.getElementById("ugx").innerHTML =
-      renderTable(ugx.binance.buy, FX.UGX);
+    document.getElementById("UGX").innerHTML =
+      table(ugx.binance.buy, ugx.binance.sell, FX.UGX);
 
-    document.getElementById("tzs").innerHTML =
-      renderTable(tzs.binance.buy, FX.TZS);
+    document.getElementById("TZS").innerHTML =
+      table(tzs.binance.buy, tzs.binance.sell, FX.TZS);
 
-    /* Advisory */
-    const kesBuy = kes.binance.buy?.[0]?.adv?.price || 0;
-    const ugxBuy = (ugx.binance.buy?.[0]?.adv?.price || 0) * FX.UGX;
+    /* Advisory: UGX → KES → Sell in KES */
+    const buyUGX = Number(ugx.binance.buy[0].adv.price) * FX.UGX;
+    const sellKES = Number(kes.binance.sell[0].adv.price);
 
-    const spread = kesBuy - ugxBuy;
-    const profit = spread * (CAPITAL_KES / kesBuy);
+    const spread = sellKES - buyUGX;
+    const profit = (spread / buyUGX) * CAPITAL;
 
     document.getElementById("advice").innerHTML =
       profit > 1000
-      ? `<span class="good">Possible profit ≈ KES ${profit.toFixed(0)}</span>`
-      : `<span class="bad">Spread too low (protected)</span>`;
+      ? `<span class="good">Estimated profit ≈ KES ${profit.toFixed(0)}</span>`
+      : `<span class="bad">Spread too low (capital protected)</span>`;
 
-  } catch (e) {
-    document.getElementById("status").innerText = "Backend waking up…";
+  } catch(e){
+    document.getElementById("status").innerText="Backend waking up…";
   }
 }
 
 refresh();
-setInterval(refresh, 5000);
+setInterval(refresh,5000);
 </script>
 
 </body>
