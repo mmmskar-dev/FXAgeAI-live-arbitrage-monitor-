@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FXageAI – Live P2P Arbitrage</title>
-
 <style>
 body { margin:0; font-family:Arial; background:#0f172a; color:#e5e7eb; }
 header { background:#020617; padding:12px; text-align:center; }
@@ -14,21 +13,21 @@ header { background:#020617; padding:12px; text-align:center; }
   grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   gap:10px; padding:10px;
 }
-.card { background:#020617; border-radius:12px; padding:10px; }
+.card { background:#020617; border-radius:12px; padding:10px; min-height:300px; }
 .kes { background:linear-gradient(135deg,#0b6623,#000); }
 .ugx { background:linear-gradient(135deg,#000,#ffd700,#d32f2f); }
 .tzs { background:linear-gradient(135deg,#1b5e20,#fdd835,#1565c0); }
 
-table { width:100%; border-collapse:collapse; font-size:13px; }
-th,td { padding:4px; text-align:right; }
+table { width:100%; border-collapse:collapse; font-size:14px; color:#e5e7eb; }
+th,td { padding:4px; text-align:right; border-bottom:1px solid #334155; }
 th { color:#93c5fd; }
 
-#advisory { margin:10px; padding:10px; background:#020617; border-radius:12px; }
+#advisory { margin:10px; padding:10px; background:#020617; border-radius:12px; font-size:14px; }
 .good { color:#22c55e; }
 .bad { color:#ef4444; }
+.platform { font-weight:bold; font-size:12px; color:#facc15; }
 </style>
 </head>
-
 <body>
 
 <header>
@@ -51,12 +50,7 @@ th { color:#93c5fd; }
 /* ================= CONFIG ================= */
 const BACKEND = "https://fxageai-p2p-backend.onrender.com";
 const CAPITAL = 100000;
-
-/* Mid FX (safe placeholders) */
-const FX = {
-  UGX: 1 / 37.5,
-  TZS: 1 / 18.2
-};
+const FX = { UGX: 1/37.5, TZS: 1/18.2 };
 
 /* ================= FETCH ================= */
 async function load(fiat){
@@ -65,21 +59,22 @@ async function load(fiat){
 }
 
 /* ================= RENDER ================= */
-function table(buy, sell, fx=1){
-  if(!buy?.length || !sell?.length) return "No data";
-  let b = Number(buy[0].adv.price) * fx;
-  let s = Number(sell[0].adv.price) * fx;
-  return `
-    <table>
-      <tr><th>Buy</th><th>Sell</th></tr>
-      <tr>
-        <td>${b.toFixed(2)}</td>
-        <td>${s.toFixed(2)}</td>
-      </tr>
-    </table>`;
+function renderTable(platformName, data, fx=1){
+  if(!data?.buy?.length || !data?.sell?.length) return "No data";
+
+  let html = `<div class="platform">${platformName}</div><table>
+  <tr><th>Buy</th><th>Sell</th></tr>`;
+
+  for(let i=0;i<Math.min(10,data.buy.length);i++){
+    const buy = Number(data.buy[i].adv.price) * fx;
+    const sell = Number(data.sell[i].adv.price) * fx;
+    html += `<tr><td>${buy.toFixed(2)}</td><td>${sell.toFixed(2)}</td></tr>`;
+  }
+  html += "</table>";
+  return html;
 }
 
-/* ================= MAIN ================= */
+/* ================= MAIN LOOP ================= */
 async function refresh(){
   try{
     document.getElementById("status").innerText="Live • updating…";
@@ -89,15 +84,15 @@ async function refresh(){
     const tzs = await load("TZS");
 
     document.getElementById("KES").innerHTML =
-      table(kes.binance.buy, kes.binance.sell);
+      renderTable("Binance", kes.binance) + renderTable("OKX", kes.okx);
 
     document.getElementById("UGX").innerHTML =
-      table(ugx.binance.buy, ugx.binance.sell, FX.UGX);
+      renderTable("Binance", ugx.binance, FX.UGX) + renderTable("OKX", ugx.okx, FX.UGX);
 
     document.getElementById("TZS").innerHTML =
-      table(tzs.binance.buy, tzs.binance.sell, FX.TZS);
+      renderTable("Binance", tzs.binance, FX.TZS) + renderTable("OKX", tzs.okx, FX.TZS);
 
-    /* Advisory: UGX → KES → Sell in KES */
+    /* Advisory: compare UGX → KES */
     const buyUGX = Number(ugx.binance.buy[0].adv.price) * FX.UGX;
     const sellKES = Number(kes.binance.sell[0].adv.price);
 
@@ -110,6 +105,7 @@ async function refresh(){
       : `<span class="bad">Spread too low (capital protected)</span>`;
 
   } catch(e){
+    console.log(e);
     document.getElementById("status").innerText="Backend waking up…";
   }
 }
