@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FXageAI – P2P Arbitrage Monitor</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0fb9b1" />
+  <style>
+    :root{
+      --teal:#0fb9b1;
+      --dark:#0b1320;
+      --card:#111a2b;
+      --text:#eaf0ff;
+    }
+    body{
+      margin:0;
+      font-family:system-ui,Segoe UI,Roboto,sans-serif;
+      background:var(--dark);
+      color:var(--text);
+    }
+    header{
+      padding:12px 16px;
+      background:#0f172a;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    h1{font-size:18px;margin:0;color:var(--teal)}
+    .fx-box{background:#020617;padding:6px 10px;border-radius:8px;font-size:13px}
+    main{padding:12px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .exchange{background:var(--card);border-radius:14px;padding:10px}
+    .exchange h2{text-align:center;margin:6px 0 10px;font-size:16px}
+    table{width:100%;border-collapse:collapse;font-size:12px}
+    th,td{padding:6px;text-align:center}
+    th{font-weight:600}/* Country color blends */
+.ksh th{background:linear-gradient(90deg,#000,#bb0000,#006600)}
+.ugx th{background:linear-gradient(90deg,#000,#ffcc00,#d90000)}
+.tzs th{background:linear-gradient(90deg,#1eb53a,#fcd116,#00a3dd)}
+
+.section{margin-top:14px;background:var(--card);border-radius:14px;padding:12px}
+.advice{font-size:14px}
+input{background:#020617;border:1px solid #1e293b;border-radius:8px;color:var(--text);padding:6px 8px}
+button{background:var(--teal);border:none;border-radius:10px;padding:8px 12px;color:#001;font-weight:600}
+
+  </style>
+</head>
+<body>
+<header>
+  <h1>FXageAI – Live P2P Arbitrage</h1>
+  <div class="fx-box">Mid FX: 1 USD = <span id="fxRate">145.20</span> KSH</div>
+</header><main>
+  <div class="grid">
+    <!-- BINANCE -->
+    <div class="exchange">
+      <h2>Binance P2P</h2>
+      <table>
+        <thead class="ksh">
+          <tr><th colspan="2">KES</th></tr>
+          <tr><th>Buy</th><th>Sell</th></tr>
+        </thead>
+        <tbody id="binance-kes"></tbody>
+      </table>
+      <table>
+        <thead class="ugx">
+          <tr><th colspan="2">UGX</th></tr>
+          <tr><th>Buy</th><th>Sell</th></tr>
+        </thead>
+        <tbody id="binance-ugx"></tbody>
+      </table>
+      <table>
+        <thead class="tzs">
+          <tr><th colspan="2">TZS</th></tr>
+          <tr><th>Buy</th><th>Sell</th></tr>
+        </thead>
+        <tbody id="binance-tzs"></tbody>
+      </table>
+    </div><!-- OKX -->
+<div class="exchange">
+  <h2>OKX P2P</h2>
+  <table>
+    <thead class="ksh">
+      <tr><th colspan="2">KES</th></tr>
+      <tr><th>Buy</th><th>Sell</th></tr>
+    </thead>
+    <tbody id="okx-kes"></tbody>
+  </table>
+  <table>
+    <thead class="ugx">
+      <tr><th colspan="2">UGX</th></tr>
+      <tr><th>Buy</th><th>Sell</th></tr>
+    </thead>
+    <tbody id="okx-ugx"></tbody>
+  </table>
+  <table>
+    <thead class="tzs">
+      <tr><th colspan="2">TZS</th></tr>
+      <tr><th>Buy</th><th>Sell</th></tr>
+    </thead>
+    <tbody id="okx-tzs"></tbody>
+  </table>
+</div>
+
+  </div>  <div class="section advice">
+    <h3>Advisory & Profit Simulation</h3>
+    <p>Example Signal:</p>
+    <ul>
+      <li>Buy USDT with KES on Binance</li>
+      <li>Sell USDT for UGX on OKX</li>
+      <li>Normalize profit to KES (mid FX)</li>
+    </ul><label>Capital (KES): </label>
+<input id="capital" value="100000" />
+<button onclick="computeProfit()">Compute</button>
+<p id="profitOut"></p>
+
+  </div>
+</main><script>
+// --- MOCK DATA (Top 10 simplified) ---
+const sampleRows = (buy,sell)=>{
+  let rows='';
+  for(let i=0;i<10;i++) rows+=`<tr><td>${(buy+i*0.1).toFixed(2)}</td><td>${(sell+i*0.1).toFixed(2)}</td></tr>`;
+  return rows;
+};
+
+document.getElementById('binance-kes').innerHTML = sampleRows(146.1,145.4);
+document.getElementById('binance-ugx').innerHTML = sampleRows(3800,3750);
+document.getElementById('binance-tzs').innerHTML = sampleRows(2550,2500);
+
+document.getElementById('okx-kes').innerHTML = sampleRows(146.5,145.9);
+document.getElementById('okx-ugx').innerHTML = sampleRows(3850,3780);
+document.getElementById('okx-tzs').innerHTML = sampleRows(2600,2520);
+
+function computeProfit(){
+  const capital = Number(document.getElementById('capital').value);
+  const buyKes = 146.1; // Binance KES buy
+  const sellUgx = 3850; // OKX UGX sell
+  const ugxKesRate = 0.038; // normalized via mid FX
+
+  const usdt = capital / buyKes;
+  const ugx = usdt * sellUgx;
+  const kesBack = ugx * ugxKesRate;
+  const profit = kesBack - capital;
+
+  document.getElementById('profitOut').innerText =
+    `Estimated Return: ${kesBack.toFixed(0)} KES | Profit: ${profit.toFixed(0)} KES`;
+}
+
+// --- PWA Service Worker ---
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js');
+}
+</script></body>
+</html>
