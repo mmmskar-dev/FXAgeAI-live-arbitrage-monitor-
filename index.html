@@ -1,105 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FXageAI – Arbitrage Advisor</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FXageAI – P2P Arbitrage Monitor</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0b1320;color:#eaf0ff}
-header{padding:12px;background:#020617;display:flex;justify-content:space-between}
-h1{font-size:18px;color:#0fb9b1}
-.fx{background:#111827;padding:6px 10px;border-radius:8px;font-size:13px}
-main{padding:12px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.box{background:#111a2b;border-radius:14px;padding:10px}
-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
-th,td{padding:6px;text-align:center}
-.kes th{background:linear-gradient(90deg,black,red,green)}
-.ugx th{background:linear-gradient(90deg,black,yellow,red)}
-.tzs th{background:linear-gradient(90deg,green,yellow,blue)}
-.best{background:#064e3b;color:#d1fae5;font-weight:bold}
-.advice{background:#111a2b;border-radius:14px;padding:12px;margin-top:14px}
-button,input{padding:8px;border-radius:8px;border:none;margin-top:6px}
-button{background:#0fb9b1;font-weight:bold}
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+header {
+  padding: 12px;
+  text-align: center;
+  background: #020617;
+}
+#status {
+  font-size: 14px;
+  color: #22c55e;
+}
+.container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
+.card {
+  border-radius: 12px;
+  padding: 10px;
+  background: #020617;
+}
+.kes { background: linear-gradient(135deg,#0b6623,#000); }
+.ugx { background: linear-gradient(135deg,#000,#ffd700,#d32f2f); }
+.tzs { background: linear-gradient(135deg,#1b5e20,#fdd835,#1565c0); }
+
+table {
+  width: 100%;
+  font-size: 13px;
+  border-collapse: collapse;
+}
+th, td {
+  padding: 4px;
+  text-align: right;
+}
+th { color: #93c5fd; }
+
+#advisory {
+  margin: 10px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #020617;
+}
+.good { color: #22c55e; }
+.bad { color: #ef4444; }
 </style>
 </head>
 
 <body>
 
 <header>
-<h1>FXageAI – Live Arbitrage</h1>
-<div class="fx">Mid FX: 1 USD = 145.20 KES</div>
+  <h2>FXageAI – Live P2P Arbitrage</h2>
+  <div id="status">Connecting…</div>
 </header>
 
-<main>
+<div class="container">
+  <div class="card kes">
+    <h3>🇰🇪 KES</h3>
+    <div id="kes"></div>
+  </div>
 
-<div class="grid">
+  <div class="card ugx">
+    <h3>🇺🇬 UGX (KES)</h3>
+    <div id="ugx"></div>
+  </div>
 
-<div class="box">
-<h3>Binance</h3>
-<table><thead class="kes"><tr><th colspan="2">KES</th></tr><tr><th>Buy</th><th>Sell</th></tr></thead><tbody id="b-kes"></tbody></table>
-<table><thead class="ugx"><tr><th colspan="2">UGX → KES</th></tr><tr><th>Buy</th><th>Sell</th></tr></thead><tbody id="b-ugx"></tbody></table>
-<table><thead class="tzs"><tr><th colspan="2">TZS → KES</th></tr><tr><th>Buy</th><th>Sell</th></tr></thead><tbody id="b-tzs"></tbody></table>
+  <div class="card tzs">
+    <h3>🇹🇿 TZS (KES)</h3>
+    <div id="tzs"></div>
+  </div>
 </div>
 
-<div class="box">
-<h3>OKX</h3>
-<table><thead class="kes"><tr><th colspan="2">KES</th></tr><tr><th>Buy</th><th>Sell</th></tr></thead><tbody id="o-kes"></tbody></table>
-<table><thead class="ugx"><tr><th colspan="2">UGX → KES</th></tr><tr><th>Buy</th><th>Sell</th></tr></thead><tbody id="o-ugx"></tbody></table>
-<table><thead class="tzs"><tr><th colspan="2">TZS → KES</th></tr><tr><th>Buy</th><th>Sell</th></tr></thead><tbody id="o-tzs"></tbody></table>
+<div id="advisory">
+  <h3>Advisory</h3>
+  <div id="advice">Waiting for data…</div>
 </div>
-
-</div>
-
-<div class="advice">
-<h3>Advisory</h3>
-<p id="signal">Scanning markets…</p>
-<label>Capital (KES)</label><br>
-<input id="cap" value="100000"><br>
-<button onclick="calc()">Compute Profit</button>
-<p id="profit"></p>
-</div>
-
-</main>
 
 <script>
-const FX={UGX:0.038,TZS:0.058};
-let prices=[];
+/* ================= CONFIG ================= */
+const BACKEND = "https://fxageai-p2p-backend.onrender.com";
+const CAPITAL_KES = 100000;
 
-function rows(buy,sell,rate,ex,cur){
-  let r='';
-  for(let i=0;i<10;i++){
-    const b=(buy+i)*rate;
-    const s=(sell+i)*rate;
-    prices.push({buy:b,sell:s,ex,cur});
-    r+=`<tr><td>${b.toFixed(2)} KES</td><td>${s.toFixed(2)} KES</td></tr>`;
+/* FX mid-market (can later be automated) */
+const FX = {
+  UGX: 1 / 37.5,
+  TZS: 1 / 18.2
+};
+
+/* ================= FETCH ================= */
+async function getP2P(fiat) {
+  const r = await fetch(`${BACKEND}/p2p?fiat=${fiat}`);
+  return await r.json();
+}
+
+/* ================= RENDER ================= */
+function renderTable(rows, fx = 1) {
+  if (!rows || rows.length === 0) return "No data";
+  let html = `<table>
+    <tr><th>Buy</th><th>Sell</th></tr>`;
+  rows.slice(0,5).forEach(r => {
+    const buy = (r.adv?.price || r.price) * fx;
+    html += `<tr>
+      <td>${buy.toFixed(2)}</td>
+      <td>-</td>
+    </tr>`;
+  });
+  html += "</table>";
+  return html;
+}
+
+/* ================= MAIN LOOP ================= */
+async function refresh() {
+  try {
+    document.getElementById("status").innerText = "Live • updating…";
+
+    const kes = await getP2P("KES");
+    const ugx = await getP2P("UGX");
+    const tzs = await getP2P("TZS");
+
+    document.getElementById("kes").innerHTML =
+      renderTable(kes.binance.buy);
+
+    document.getElementById("ugx").innerHTML =
+      renderTable(ugx.binance.buy, FX.UGX);
+
+    document.getElementById("tzs").innerHTML =
+      renderTable(tzs.binance.buy, FX.TZS);
+
+    /* Advisory */
+    const kesBuy = kes.binance.buy?.[0]?.adv?.price || 0;
+    const ugxBuy = (ugx.binance.buy?.[0]?.adv?.price || 0) * FX.UGX;
+
+    const spread = kesBuy - ugxBuy;
+    const profit = spread * (CAPITAL_KES / kesBuy);
+
+    document.getElementById("advice").innerHTML =
+      profit > 1000
+      ? `<span class="good">Possible profit ≈ KES ${profit.toFixed(0)}</span>`
+      : `<span class="bad">Spread too low (protected)</span>`;
+
+  } catch (e) {
+    document.getElementById("status").innerText = "Backend waking up…";
   }
-  return r;
 }
 
-document.getElementById('b-kes').innerHTML=rows(146,145,1,'Binance','KES');
-document.getElementById('b-ugx').innerHTML=rows(3800,3750,FX.UGX,'Binance','UGX');
-document.getElementById('b-tzs').innerHTML=rows(2550,2500,FX.TZS,'Binance','TZS');
-
-document.getElementById('o-kes').innerHTML=rows(147,146,1,'OKX','KES');
-document.getElementById('o-ugx').innerHTML=rows(3850,3780,FX.UGX,'OKX','UGX');
-document.getElementById('o-tzs').innerHTML=rows(2600,2520,FX.TZS,'OKX','TZS');
-
-const bestBuy=prices.reduce((a,b)=>b.buy<a.buy?b:a);
-const bestSell=prices.reduce((a,b)=>b.sell>a.sell?b:a);
-
-document.getElementById('signal').innerText=
-`BUY on ${bestBuy.ex} (${bestBuy.cur}) → SELL on ${bestSell.ex} (${bestSell.cur})
-Spread: ${(((bestSell.sell-bestBuy.buy)/bestBuy.buy)*100).toFixed(2)}%`;
-
-function calc(){
-const cap=Number(document.getElementById('cap').value);
-const usdt=cap/bestBuy.buy;
-const back=usdt*bestSell.sell;
-document.getElementById('profit').innerText=
-`Final: ${back.toFixed(0)} KES | Profit: ${(back-cap).toFixed(0)} KES`;
-}
+refresh();
+setInterval(refresh, 5000);
 </script>
 
 </body>
